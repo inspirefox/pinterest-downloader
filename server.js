@@ -1,38 +1,44 @@
-const express = require('express');
-const puppeteer = require('puppeteer');
+const express = require("express");
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static("public"));
 
-app.post('/download', async (req, res) => {
+app.post("/download", async (req, res) => {
   const url = req.body.url;
 
   try {
     const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox','--disable-setuid-sandbox']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless
     });
 
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 0 });
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
 
-    // Try multiple selectors
+    // wait थोड़ा ताकि content load हो
+    await new Promise(r => setTimeout(r, 3000));
+
     const data = await page.evaluate(() => {
 
-      let video = document.querySelector('video');
+      // 🎥 Try video tag
+      const video = document.querySelector("video");
       if (video && video.src) {
         return { type: "video", url: video.src };
       }
 
-      // fallback: meta tag
-      let meta = document.querySelector('meta[property="og:video"]');
-      if (meta) {
-        return { type: "video", url: meta.content };
+      // 🎥 Try meta video
+      const metaVideo = document.querySelector('meta[property="og:video"]');
+      if (metaVideo) {
+        return { type: "video", url: metaVideo.content };
       }
 
-      // fallback: image
-      let img = document.querySelector('img');
+      // 🖼️ Try image
+      const img = document.querySelector('img');
       if (img && img.src) {
         return { type: "image", url: img.src };
       }
@@ -59,7 +65,7 @@ app.post('/download', async (req, res) => {
         `);
       }
     } else {
-      res.send("❌ Media not found");
+      res.send("❌ Media not found. Try another link.");
     }
 
   } catch (err) {
@@ -67,6 +73,17 @@ app.post('/download', async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server started");
+// homepage
+app.get("/", (req, res) => {
+  res.send(`
+    <h2>Pinterest Downloader 🔥</h2>
+    <form method="POST" action="/download">
+      <input type="text" name="url" placeholder="Paste Pinterest URL" style="width:300px;padding:10px;" required />
+      <br><br>
+      <button type="submit">Download</button>
+    </form>
+  `);
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server started on " + PORT));
