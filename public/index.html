@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pinterest Downloader</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      background: linear-gradient(135deg,#ff416c,#ff4b2b);
+      color: white;
+      padding-top: 100px;
+    }
+    input {
+      width: 320px;
+      padding: 12px;
+      border: none;
+      border-radius: 5px;
+    }
+    button {
+      padding: 12px 20px;
+      border: none;
+      background: black;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .box {
+      background: white;
+      color: black;
+      padding: 20px;
+      margin: auto;
+      width: 350px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Pinterest Downloader 🔥</h2>
+  <form action="/download" method="POST">
+    <input type="text" name="url" placeholder="Paste Pinterest URL" required />
+    <br><br>
+    <button type="submit">Download</button>
+  </form>
+</div>
+
+</body>
+</html>
