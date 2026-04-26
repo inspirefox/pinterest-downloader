@@ -4,8 +4,20 @@ const chromium = require("@sparticuz/chromium");
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
 
+// Home Page
+app.get("/", (req, res) => {
+  res.send(`
+    <h2>Pinterest Downloader 🔥</h2>
+    <form method="POST" action="/download">
+      <input type="text" name="url" placeholder="Paste Pinterest URL" style="width:300px;padding:10px;" required />
+      <br><br>
+      <button type="submit">Download</button>
+    </form>
+  `);
+});
+
+// Download Route
 app.post("/download", async (req, res) => {
   const url = req.body.url;
 
@@ -20,25 +32,24 @@ app.post("/download", async (req, res) => {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
 
-    // wait थोड़ा ताकि content load हो
-    await new Promise(r => setTimeout(r, 3000));
+    // थोड़ा wait ताकि content load हो जाए
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     const data = await page.evaluate(() => {
-
-      // 🎥 Try video tag
+      // 🎥 video tag
       const video = document.querySelector("video");
       if (video && video.src) {
         return { type: "video", url: video.src };
       }
 
-      // 🎥 Try meta video
+      // 🎥 meta video
       const metaVideo = document.querySelector('meta[property="og:video"]');
       if (metaVideo) {
         return { type: "video", url: metaVideo.content };
       }
 
-      // 🖼️ Try image
-      const img = document.querySelector('img');
+      // 🖼️ image fallback
+      const img = document.querySelector("img");
       if (img && img.src) {
         return { type: "image", url: img.src };
       }
@@ -71,18 +82,6 @@ app.post("/download", async (req, res) => {
   } catch (err) {
     res.send("⚠️ Error: " + err.message);
   }
-});
-
-// homepage
-app.get("/", (req, res) => {
-  res.send(`
-    <h2>Pinterest Downloader 🔥</h2>
-    <form method="POST" action="/download">
-      <input type="text" name="url" placeholder="Paste Pinterest URL" style="width:300px;padding:10px;" required />
-      <br><br>
-      <button type="submit">Download</button>
-    </form>
-  `);
 });
 
 const PORT = process.env.PORT || 3000;
