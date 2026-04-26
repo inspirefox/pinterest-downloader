@@ -1,11 +1,16 @@
 const express = require("express");
-const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium");
+const axios = require("axios");
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 
-// 🔹 Home Page
+// 👉 Yaha apni API key daalo
+const API_KEY = "b4346b269cmshef0a29e27076f9fp11fc67jsnad80e88c7996";
+
+// 👉 API host (RapidAPI se milega)
+const API_HOST = "pinterest-video-and-image-downloader.p.rapidapi.com";
+
+// Home Page
 app.get("/", (req, res) => {
   res.send(`
     <h2>Pinterest Downloader 🔥</h2>
@@ -17,67 +22,56 @@ app.get("/", (req, res) => {
   `);
 });
 
-// 🔥 DOWNLOAD ROUTE (NETWORK BASED)
+// Download Route
 app.post("/download", async (req, res) => {
   const url = req.body.url;
 
   try {
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless
-    });
-
-    const page = await browser.newPage();
-
-    let videoUrl = null;
-
-    // 📡 Network sniffing
-    page.on("response", async (response) => {
-      try {
-        const requestUrl = response.url();
-
-        if (requestUrl.includes("video_list")) {
-          const text = await response.text();
-
-          const match = text.match(/"video_list":(.*?),"image_cover"/);
-
-          if (match && match[1]) {
-            const json = JSON.parse(match[1]);
-
-            for (let key in json) {
-              if (json[key].url) {
-                videoUrl = json[key].url;
-              }
-            }
-          }
+    const response = await axios.get(
+      "https://pinterest-video-and-image-downloader.p.rapidapi.com/",
+      {
+        params: { url },
+        headers: {
+          "X-RapidAPI-Key": API_KEY,
+          "X-RapidAPI-Host": API_HOST
         }
-      } catch (e) {}
-    });
+      }
+    );
 
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+    const data = response.data;
 
-    // थोड़ा wait ताकि API call आ जाए
-    await new Promise((r) => setTimeout(r, 5000));
+    // 🔥 Video
+    if (data.data && data.data.videos && data.data.videos.length > 0) {
+      const videoUrl = data.data.videos[0].url;
 
-    await browser.close();
-
-    if (videoUrl) {
       res.send(`
         <h2>Video Found 🎥</h2>
         <video src="${videoUrl}" controls width="400"></video>
         <br><br>
         <a href="${videoUrl}" download>Download Video</a>
       `);
-    } else {
-      res.send("❌ Video not found. Try another pin.");
+    }
+
+    // 🖼️ Image
+    else if (data.data && data.data.images && data.data.images.length > 0) {
+      const imgUrl = data.data.images[0].url;
+
+      res.send(`
+        <h2>Image Found 🖼️</h2>
+        <img src="${imgUrl}" width="300"/>
+        <br><br>
+        <a href="${imgUrl}" download>Download Image</a>
+      `);
+    }
+
+    else {
+      res.send("❌ Media not found");
     }
 
   } catch (err) {
-    res.send("⚠️ Error: " + err.message);
+    res.send("⚠️ API Error: " + err.message);
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server started on " + PORT));
+app.listen(PORT, () => console.log("Server started"));
