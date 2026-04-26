@@ -5,7 +5,7 @@ const chromium = require("@sparticuz/chromium");
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 
-// Home Page
+// 🔹 Home Page
 app.get("/", (req, res) => {
   res.send(`
     <h2>Pinterest Downloader 🔥</h2>
@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
   `);
 });
 
-// Download Route
+// 🔥 DOWNLOAD ROUTE (NETWORK BASED)
 app.post("/download", async (req, res) => {
   const url = req.body.url;
 
@@ -30,53 +30,48 @@ app.post("/download", async (req, res) => {
     });
 
     const page = await browser.newPage();
+
+    let videoUrl = null;
+
+    // 📡 Network sniffing
+    page.on("response", async (response) => {
+      try {
+        const requestUrl = response.url();
+
+        if (requestUrl.includes("video_list")) {
+          const text = await response.text();
+
+          const match = text.match(/"video_list":(.*?),"image_cover"/);
+
+          if (match && match[1]) {
+            const json = JSON.parse(match[1]);
+
+            for (let key in json) {
+              if (json[key].url) {
+                videoUrl = json[key].url;
+              }
+            }
+          }
+        }
+      } catch (e) {}
+    });
+
     await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
 
-    // थोड़ा wait ताकि content load हो जाए
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    const data = await page.evaluate(() => {
-      // 🎥 video tag
-      const video = document.querySelector("video");
-      if (video && video.src) {
-        return { type: "video", url: video.src };
-      }
-
-      // 🎥 meta video
-      const metaVideo = document.querySelector('meta[property="og:video"]');
-      if (metaVideo) {
-        return { type: "video", url: metaVideo.content };
-      }
-
-      // 🖼️ image fallback
-      const img = document.querySelector("img");
-      if (img && img.src) {
-        return { type: "image", url: img.src };
-      }
-
-      return null;
-    });
+    // थोड़ा wait ताकि API call आ जाए
+    await new Promise((r) => setTimeout(r, 5000));
 
     await browser.close();
 
-    if (data) {
-      if (data.type === "video") {
-        res.send(`
-          <h2>Video Found 🎥</h2>
-          <video src="${data.url}" controls width="400"></video>
-          <br><br>
-          <a href="${data.url}" download>Download Video</a>
-        `);
-      } else {
-        res.send(`
-          <h2>Image Found 🖼️</h2>
-          <img src="${data.url}" width="300"/>
-          <br><br>
-          <a href="${data.url}" download>Download Image</a>
-        `);
-      }
+    if (videoUrl) {
+      res.send(`
+        <h2>Video Found 🎥</h2>
+        <video src="${videoUrl}" controls width="400"></video>
+        <br><br>
+        <a href="${videoUrl}" download>Download Video</a>
+      `);
     } else {
-      res.send("❌ Media not found. Try another link.");
+      res.send("❌ Video not found. Try another pin.");
     }
 
   } catch (err) {
